@@ -2,35 +2,23 @@
 
 import requests
 from bs4 import BeautifulSoup
-import re
 
-def find_fbref_url(player_name):
-    # Recherche via Bing (Google bloque souvent les bots)
-    query = f"site:fbref.com {player_name}"
-    url = f"https://www.bing.com/search?q={query.replace(' ', '+')}"
-
+def get_scouting_report(url):
     headers = {
         "User-Agent": "Mozilla/5.0"
     }
+
     r = requests.get(url, headers=headers)
+    if r.status_code != 200:
+        print(f"❌ Erreur HTTP {r.status_code} pour {url}")
+        return {}
+
     soup = BeautifulSoup(r.text, "html.parser")
-
-    # Cherche le premier lien fbref
-    for a in soup.find_all("a", href=True):
-        href = a["href"]
-        if "fbref.com/en/players" in href:
-            return href
-    return None
-
-def get_scouting_report(url):
-    r = requests.get(url)
-    soup = BeautifulSoup(r.text, "html.parser")
-
     report = {}
 
     scouting_table = soup.find("table", {"id": "scout_summary"})
     if not scouting_table:
-        print("❌ Scouting Report introuvable sur cette page.")
+        print("❌ Scouting Report introuvable.")
         return report
 
     for row in scouting_table.find_all("tr"):
@@ -38,27 +26,21 @@ def get_scouting_report(url):
         if len(cells) >= 2:
             stat_name = cells[0].text.strip()
             percentile = cells[1].text.strip()
-            # Nettoyage : parfois "99" ou "99th" ou "-"
             if percentile.isdigit():
                 report[stat_name] = int(percentile)
 
     return report
 
 if __name__ == "__main__":
-    player_name = "Mohamed Salah"
-    print(f"🔍 Recherche de l’URL FBref pour {player_name}...")
-    url = find_fbref_url(player_name)
+    url = "https://fbref.com/en/players/e342ad68/Mohamed-Salah"
+    print(f"➡️ URL utilisée : {url}")
+    print(f"📊 Récupération du scouting report...")
 
-    if url:
-        print(f"➡️ URL trouvée : {url}")
-        print(f"📊 Récupération du scouting report...")
-        report = get_scouting_report(url)
+    report = get_scouting_report(url)
 
-        if report:
-            print(f"✅ Scouting Report de {player_name} :\n")
-            for stat, pct in report.items():
-                print(f"{stat:30s} : {pct}")
-        else:
-            print("⚠️ Aucun report trouvé.")
+    if report:
+        print(f"✅ Scouting Report récupéré :\n")
+        for stat, pct in report.items():
+            print(f"{stat:35s} : {pct}")
     else:
-        print("❌ Impossible de trouver la page FBref.")
+        print("⚠️ Aucun scouting report extrait.")
